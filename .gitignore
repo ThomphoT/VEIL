@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+.m2/
+target/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+.env.local
+.DS_Store

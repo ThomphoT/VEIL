@@ -1,0 +1,11 @@
+{
+  "name": "veil-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm --prefix apps/veil-frontend run dev",
+    "build:frontend": "npm --prefix apps/veil-frontend run build",
+    "dev:backend": "cd apps/veil-backend && uvicorn app.main:app --reload --port 8000",
+    "test:backend": "cd apps/veil-backend && python -m pytest"
+  }
+}
