@@ -86,7 +86,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-veil-bg text-veil-text">
-      <header className="border-b border-veil-border px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-veil-border/50 px-6 py-4 flex items-center justify-between" style={{ background: 'rgba(5, 8, 22, 0.7)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-veil-cyan to-veil-blue flex items-center justify-center">
             <span className="text-white font-bold text-sm">V</span>
