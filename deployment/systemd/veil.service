@@ -1,0 +1,21 @@
+[Unit]
+Description=VEIL - Financial Governance API
+After=network.target
+
+[Service]
+Type=simple
+User=veil
+Group=veil
+WorkingDirectory=/opt/veil/backend
+EnvironmentFile=/opt/veil/backend/.env
+ExecStart=/opt/veil/backend/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4 --log-level info
+Restart=always
+RestartSec=5
+StartLimitInterval=0
+StartLimitBurst=0
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

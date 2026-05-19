@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #050816;
+    color: #F8FAFC;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0B1220;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1E293B;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(11, 18, 32, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid #1E293B;
+    border-radius: 20px;
+  }
+
+  .glass-panel:hover {
+    border-color: rgba(34, 211, 238, 0.2);
+  }
+
+  .cyan-glow {
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.15);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #22D3EE 0%, #2563EB 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-gradient {
+    border-image: linear-gradient(135deg, #22D3EE, #2563EB) 1;
+  }
+
+  .risk-low {
+    color: #10B981;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+
+  .risk-medium {
+    color: #F59E0B;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  }
+
+  .risk-high {
+    color: #EF4444;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  }
+
+  .typewriter-text {
+    overflow: hidden;
+    border-right: 2px solid #22D3EE;
+    white-space: pre-wrap;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    50% { border-color: transparent; }
+  }
+}
