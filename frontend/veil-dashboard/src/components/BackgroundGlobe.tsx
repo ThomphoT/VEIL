@@ -2,223 +2,235 @@
 
 import { useEffect, useRef } from 'react'
 
-const PHI = (1 + Math.sqrt(5)) / 2
-
-function normalize(v: [number, number, number]): [number, number, number] {
-  const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
-  return [v[0] / len, v[1] / len, v[2] / len]
-}
-
-function subdivide(
-  vertices: [number, number, number][],
-  faces: [number, number, number][]
-): { vertices: [number, number, number][]; faces: [number, number, number][] } {
-  const midCache = new Map<string, number>()
-  const newFaces: [number, number, number][] = []
-
-  function getMid(a: number, b: number): number {
-    const key = a < b ? `${a}-${b}` : `${b}-${a}`
-    if (midCache.has(key)) return midCache.get(key)!
-    const v1 = vertices[a]
-    const v2 = vertices[b]
-    const mid = normalize([(v1[0] + v2[0]) / 2, (v1[1] + v2[1]) / 2, (v1[2] + v2[2]) / 2])
-    const idx = vertices.length
-    vertices.push(mid)
-    midCache.set(key, idx)
-    return idx
-  }
-
-  for (const [a, b, c] of faces) {
-    const ab = getMid(a, b)
-    const bc = getMid(b, c)
-    const ca = getMid(c, a)
-    newFaces.push([a, ab, ca])
-    newFaces.push([b, bc, ab])
-    newFaces.push([c, ca, bc])
-    newFaces.push([ab, bc, ca])
-  }
-
-  return { vertices, faces: newFaces }
-}
-
-function generateIcosahedron(subdivisions: number = 1) {
-  const t = 0.5 / PHI
-  const raw: [number, number, number][] = [
-    [-0.5, t, 0], [0.5, t, 0], [-0.5, -t, 0], [0.5, -t, 0],
-    [0, -0.5, t], [0, 0.5, t], [0, -0.5, -t], [0, 0.5, -t],
-    [t, 0, -0.5], [t, 0, 0.5], [-t, 0, -0.5], [-t, 0, 0.5],
-  ]
-  const vertices: [number, number, number][] = raw.map(normalize)
-  const faces: [number, number, number][] = [
-    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
-    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
-    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
-    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
-  ]
-
-  let result = { vertices, faces }
-  for (let i = 0; i < subdivisions; i++) {
-    result = subdivide(result.vertices, result.faces)
-  }
-  return result
-}
-
-function buildEdges(faces: [number, number, number][]): [number, number][] {
-  const edgeSet = new Set<string>()
-  const edges: [number, number][] = []
-  for (const [a, b, c] of faces) {
-    for (const pair of [[a, b], [b, c], [c, a]] as [number, number][]) {
-      const key = pair[0] < pair[1] ? `${pair[0]}-${pair[1]}` : `${pair[1]}-${pair[0]}`
-      if (!edgeSet.has(key)) {
-        edgeSet.add(key)
-        edges.push(pair)
-      }
-    }
-  }
-  return edges
-}
-
 export default function BackgroundGlobe() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const mouseRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const { vertices, faces } = generateIcosahedron(2)
-    const edges = buildEdges(faces)
-    const vertexCount = vertices.length
+    let animId: number
+    let W = window.innerWidth
+    let H = window.innerHeight
 
-    function resize() {
-      canvas!.width = window.innerWidth * window.devicePixelRatio
-      canvas!.height = window.innerHeight * window.devicePixelRatio
-      canvas!.style.width = `${window.innerWidth}px`
-      canvas!.style.height = `${window.innerHeight}px`
-      ctx!.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0)
-    }
-
-    const handleMouse = (e: MouseEvent) => {
-      mouseRef.current.x = (e.clientX / window.innerWidth - 0.5) * 2
-      mouseRef.current.y = (e.clientY / window.innerHeight - 0.5) * 2
+    const resize = () => {
+      W = window.innerWidth
+      H = window.innerHeight
+      canvas.width = W
+      canvas.height = H
     }
 
     resize()
     window.addEventListener('resize', resize)
-    window.addEventListener('mousemove', handleMouse)
 
-    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.22
-    const cx = window.innerWidth / 2
-    const cy = window.innerHeight / 2
+    // ── Globe config ──────────────────────────────────
+    const cx = W * 0.5
+    const cy = H * 0.5
+    const R = Math.min(W, H) * 0.34
 
+    // Particle counts
+    const RING_PARTICLES   = 2800   // dense toroidal ring like Kimi
+    const SPHERE_PARTICLES = 600    // sparse inner sphere
+    const NODES            = 14     // bright network nodes
+
+    // ── Ring particles (torus shape) ──────────────────
+    interface RingParticle {
+      theta: number   // angle around torus center
+      phi: number     // angle in tube cross-section
+      tubeR: number   // tube radius (varied for density)
+      speed: number
+      size: number
+      brightness: number
+    }
+
+    const ring: RingParticle[] = Array.from({ length: RING_PARTICLES }, () => ({
+      theta: Math.random() * Math.PI * 2,
+      phi: Math.random() * Math.PI * 2,
+      tubeR: R * (0.08 + Math.random() * 0.1),
+      speed: (0.0002 + Math.random() * 0.0003) * (Math.random() < 0.5 ? 1 : -1),
+      size: 0.3 + Math.random() * 0.9,
+      brightness: 0.15 + Math.random() * 0.6,
+    }))
+
+    // ── Sphere particles (inner) ───────────────────────
+    interface SphereParticle {
+      lat: number
+      lon: number
+      r: number
+      speed: number
+      size: number
+      opacity: number
+    }
+
+    const spherePoints: SphereParticle[] = Array.from({ length: SPHERE_PARTICLES }, () => ({
+      lat: (Math.random() - 0.5) * Math.PI,
+      lon: Math.random() * Math.PI * 2,
+      r: R * (0.3 + Math.random() * 0.55),
+      speed: 0.0001 + Math.random() * 0.0002,
+      size: 0.4 + Math.random() * 1.0,
+      opacity: 0.05 + Math.random() * 0.2,
+    }))
+
+    // ── Network nodes ──────────────────────────────────
+    interface Node {
+      lat: number
+      lon: number
+      r: number
+      size: number
+      pulsePhase: number
+      connections: number[]
+    }
+
+    const nodes: Node[] = Array.from({ length: NODES }, (_, i) => ({
+      lat: (Math.random() - 0.5) * Math.PI * 0.8,
+      lon: Math.random() * Math.PI * 2,
+      r: R * (0.5 + Math.random() * 0.4),
+      size: 1.5 + Math.random() * 2,
+      pulsePhase: Math.random() * Math.PI * 2,
+      connections: Array.from({ length: 2 }, () => Math.floor(Math.random() * NODES)).filter(j => j !== i),
+    }))
+
+    // ── Rotation state ─────────────────────────────────
     let rotY = 0
-    let rotX = 0
+    let rotX = 0.15   // slight tilt like Kimi
 
-    function project(v: [number, number, number]): [number, number, number] {
-      const cosX = Math.cos(rotX), sinX = Math.sin(rotX)
+    const project = (x: number, y: number, z: number) => {
+      // Rotate around Y
       const cosY = Math.cos(rotY), sinY = Math.sin(rotY)
-      const x1 = v[0] * cosY - v[2] * sinY
-      const z1 = v[0] * sinY + v[2] * cosY
-      const y1 = v[1] * cosX - z1 * sinX
-      const z2 = v[1] * sinX + z1 * cosX
-      return [x1, y1, z2]
+      const x1 = x * cosY - z * sinY
+      const z1 = x * sinY + z * cosY
+      // Rotate around X
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX)
+      const y1 = y * cosX - z1 * sinX
+      const z2 = y * sinX + z1 * cosX
+      return { px: cx + x1, py: cy + y1, pz: z2 }
     }
 
-    function draw(time: number) {
-      const w = window.innerWidth
-      const h = window.innerHeight
-      ctx!.clearRect(0, 0, w, h)
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H)
 
-      const mx = mouseRef.current.x * 0.3
-      const my = mouseRef.current.y * 0.2
-      rotY = time * 0.0002 + mx
-      rotX = Math.sin(time * 0.0001) * 0.2 + my
+      rotY += 0.0015
 
-      const projected = vertices.map(v => project(v))
-
-      const screenVerts = projected.map(v => [
-        cx + v[0] * radius,
-        cy + v[1] * radius,
-        v[2],
-      ] as [number, number, number])
-
-      const sortedEdges = edges
-        .map(([a, b]) => ({ a, b, depth: (projected[a][2] + projected[b][2]) / 2 }))
-        .sort((a, b) => a.depth - b.depth)
-
-      for (const e of sortedEdges) {
-        const p1 = screenVerts[e.a]
-        const p2 = screenVerts[e.b]
-        const depth = (e.depth + 1) / 2
-        const alpha = 0.08 + depth * 0.25
-        const lineWidth = 0.5 + depth * 1.5
-
-        ctx!.beginPath()
-        ctx!.moveTo(p1[0], p1[1])
-        ctx!.lineTo(p2[0], p2[1])
-        ctx!.strokeStyle = `rgba(37, 99, 235, ${alpha})`
-        ctx!.lineWidth = lineWidth
-        ctx!.stroke()
-
-        const glowAlpha = 0.02 + depth * 0.08
-        ctx!.beginPath()
-        ctx!.moveTo(p1[0], p1[1])
-        ctx!.lineTo(p2[0], p2[1])
-        ctx!.strokeStyle = `rgba(34, 211, 238, ${glowAlpha})`
-        ctx!.lineWidth = lineWidth + 4
-        ctx!.stroke()
+      // ── Sphere particles ─────────────────────────────
+      for (const p of spherePoints) {
+        p.lon += p.speed
+        const x = p.r * Math.cos(p.lat) * Math.cos(p.lon)
+        const y = p.r * Math.sin(p.lat)
+        const z = p.r * Math.cos(p.lat) * Math.sin(p.lon)
+        const { px, py, pz } = project(x, y, z)
+        const depth = (pz + R) / (2 * R)
+        const alpha = p.opacity * depth * 0.5
+        if (alpha < 0.005) continue
+        ctx.beginPath()
+        ctx.arc(px, py, p.size * depth, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(180,180,180,${alpha})`
+        ctx.fill()
       }
 
-      const sortedVerts = projected
-        .map((v, i) => ({ i, depth: v[2] }))
-        .sort((a, b) => a.depth - b.depth)
+      // ── Ring torus ───────────────────────────────────
+      const sortedRing = ring.map(p => {
+        p.theta += p.speed
+        const torusX = (R + p.tubeR * Math.cos(p.phi)) * Math.cos(p.theta)
+        const torusY = p.tubeR * Math.sin(p.phi) * 0.4  // flatten torus vertically
+        const torusZ = (R + p.tubeR * Math.cos(p.phi)) * Math.sin(p.theta)
+        const { px, py, pz } = project(torusX, torusY, torusZ)
+        const depth = (pz + R * 1.5) / (R * 3)
+        return { px, py, depth, p }
+      }).sort((a, b) => a.depth - b.depth)
 
-      const pulse = Math.sin(time * 0.002) * 0.3 + 0.7
-
-      for (const { i, depth } of sortedVerts) {
-        const p = screenVerts[i]
-        const d = (depth + 1) / 2
-        const baseSize = 1.5 + d * 2
-        const size = baseSize * (0.8 + pulse * 0.2)
-
-        const grad = ctx!.createRadialGradient(p[0], p[1], 0, p[0], p[1], size * 4)
-        grad.addColorStop(0, `rgba(34, 211, 238, ${0.3 + d * 0.5})`)
-        grad.addColorStop(0.3, `rgba(34, 211, 238, ${0.1 + d * 0.2})`)
-        grad.addColorStop(1, 'rgba(34, 211, 238, 0)')
-        ctx!.fillStyle = grad
-        ctx!.beginPath()
-        ctx!.arc(p[0], p[1], size * 4, 0, Math.PI * 2)
-        ctx!.fill()
-
-        ctx!.fillStyle = `rgba(34, 211, 238, ${0.5 + d * 0.5})`
-        ctx!.beginPath()
-        ctx!.arc(p[0], p[1], size * 0.5, 0, Math.PI * 2)
-        ctx!.fill()
-
-        ctx!.fillStyle = `rgba(248, 250, 252, ${0.2 + d * 0.4})`
-        ctx!.beginPath()
-        ctx!.arc(p[0], p[1], size * 0.2, 0, Math.PI * 2)
-        ctx!.fill()
+      for (const { px, py, depth, p } of sortedRing) {
+        const alpha = p.brightness * Math.max(0, depth) * 0.9
+        if (alpha < 0.01) continue
+        const size = p.size * (0.5 + depth * 0.6)
+        ctx.beginPath()
+        ctx.arc(px, py, size, 0, Math.PI * 2)
+        // Vary from near-white to grey based on brightness
+        const lum = Math.floor(160 + p.brightness * 80)
+        ctx.fillStyle = `rgba(${lum},${lum},${lum},${alpha})`
+        ctx.fill()
       }
 
-      requestAnimationFrame(draw)
+      // ── Network connections ──────────────────────────
+      const nodePositions = nodes.map(n => {
+        const x = n.r * Math.cos(n.lat) * Math.cos(n.lon)
+        const y = n.r * Math.sin(n.lat)
+        const z = n.r * Math.cos(n.lat) * Math.sin(n.lon)
+        return project(x, y, z)
+      })
+
+      for (let i = 0; i < nodes.length; i++) {
+        const { px: ax, py: ay, pz: az } = nodePositions[i]
+        for (const j of nodes[i].connections) {
+          const { px: bx, py: by, pz: bz } = nodePositions[j]
+          const depthA = (az + R) / (2 * R)
+          const depthB = (bz + R) / (2 * R)
+          if (depthA < 0.1 && depthB < 0.1) continue
+          const alpha = Math.min(depthA, depthB) * 0.12
+          ctx.beginPath()
+          ctx.moveTo(ax, ay)
+          ctx.lineTo(bx, by)
+          ctx.strokeStyle = `rgba(200,200,200,${alpha})`
+          ctx.lineWidth = 0.5
+          ctx.stroke()
+        }
+      }
+
+      // ── Network nodes ────────────────────────────────
+      const t = Date.now() * 0.001
+      for (let i = 0; i < nodes.length; i++) {
+        const { px, py, pz } = nodePositions[i]
+        const depth = (pz + R) / (2 * R)
+        if (depth < 0.05) continue
+        const pulse = 0.5 + 0.5 * Math.sin(t * 1.5 + nodes[i].pulsePhase)
+        const alpha = depth * (0.5 + pulse * 0.3)
+        const size = nodes[i].size * depth
+        // Outer glow ring
+        ctx.beginPath()
+        ctx.arc(px, py, size + 2 + pulse * 2, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(220,220,220,${alpha * 0.08})`
+        ctx.fill()
+        // Core dot
+        ctx.beginPath()
+        ctx.arc(px, py, size, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(240,240,240,${alpha * 0.85})`
+        ctx.fill()
+      }
+
+      // ── Vignette ─────────────────────────────────────
+      const vignette = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, R * 1.5)
+      vignette.addColorStop(0, 'rgba(0,0,0,0)')
+      vignette.addColorStop(1, 'rgba(0,0,0,0.65)')
+      ctx.fillStyle = vignette
+      ctx.fillRect(0, 0, W, H)
+
+      animId = requestAnimationFrame(draw)
     }
 
-    const animId = requestAnimationFrame(draw)
+    draw()
+
     return () => {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', resize)
-      window.removeEventListener('mousemove', handleMouse)
     }
   }, [])
 
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
-      style={{ opacity: 0.6 }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        pointerEvents: 'none',
+        opacity: 0,
+        animation: 'fadeIn 2s ease 4s forwards',
+      }}
+      aria-hidden="true"
     />
   )
 }

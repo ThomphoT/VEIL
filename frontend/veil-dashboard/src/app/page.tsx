@@ -1,20 +1,41 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import LeftPanel from '@/components/LeftPanel'
 import CenterPanel from '@/components/CenterPanel'
 import RightPanel from '@/components/RightPanel'
 import BottomPanel from '@/components/BottomPanel'
 import { getMockTransaction, analyzeTransaction, runDemo, type Transaction, type AnalyzeResponse } from '@/lib/api'
 
-export default function Dashboard() {
-  const [transaction, setTransaction] = useState<Transaction | null>(null)
-  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [agentUpdates, setAgentUpdates] = useState<{ agent: string; status: string; score?: number }[]>([])
+// ── Animation variants ───────────────────────────────────────────────────────
+const STAGGER = {
+  container: { animate: { transition: { staggerChildren: 0.08 } } },
+  item: {
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
+  },
+}
 
+const SLIDE_LEFT  = { initial: { opacity: 0, x: -20 }, animate: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } } }
+const SLIDE_RIGHT = { initial: { opacity: 0, x: 20  }, animate: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } } }
+const SLIDE_UP    = { initial: { opacity: 0, y: 16  }, animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } } }
+
+export default function Dashboard() {
+  const [transaction, setTransaction]   = useState<Transaction | null>(null)
+  const [analysis, setAnalysis]         = useState<AnalyzeResponse | null>(null)
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState<string | null>(null)
+  const [agentUpdates, setAgentUpdates] = useState<{ agent: string; status: string; score?: number }[]>([])
+  const [ready, setReady]               = useState(false)
+
+  // Delay dashboard reveal until after loading screen
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 4400)
+    return () => clearTimeout(t)
+  }, [])
+
+  // ── Handlers (identical logic to original) ───────────────────────────────
   const fetchMockTransaction = useCallback(async () => {
     try {
       setError(null)
@@ -23,7 +44,7 @@ export default function Dashboard() {
       const txn = await getMockTransaction()
       setTransaction(txn)
       return txn
-    } catch (e) {
+    } catch {
       setError('Failed to fetch mock transaction')
       return null
     }
@@ -44,7 +65,7 @@ export default function Dashboard() {
         score: r.score,
       }))
       setAgentUpdates(updates)
-    } catch (e) {
+    } catch {
       setError('Analysis failed')
     } finally {
       setLoading(false)
@@ -73,7 +94,7 @@ export default function Dashboard() {
         score: r.score,
       }))
       setAgentUpdates(updates)
-    } catch (e) {
+    } catch {
       setError('Demo failed')
     } finally {
       setLoading(false)
@@ -84,65 +105,192 @@ export default function Dashboard() {
     fetchMockTransaction()
   }, [fetchMockTransaction])
 
+  if (!ready) return null
+
   return (
-    <div className="min-h-screen bg-veil-bg text-veil-text">
-      <header className="border-b border-veil-border/50 px-6 py-4 flex items-center justify-between" style={{ background: 'rgba(5, 8, 22, 0.7)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-veil-cyan to-veil-blue flex items-center justify-center">
-            <span className="text-white font-bold text-sm">V</span>
+    <motion.div
+      className="min-h-screen"
+      style={{ background: 'transparent' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8, ease: 'easeOut' }}
+    >
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <header className="veil-header px-6 py-0" style={{ height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Left — Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="veil-logo-mark">
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '11px',
+                fontWeight: 800,
+                color: 'var(--veil-pure)',
+                letterSpacing: '-0.02em',
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              V
+            </span>
           </div>
-          <h1 className="text-xl font-bold text-gradient">VEIL</h1>
-          <span className="text-xs text-veil-muted ml-2">— governance infrastructure</span>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span className="veil-logo-text">VEIL</span>
+          </div>
+
+          <div
+            style={{
+              width: '1px',
+              height: '20px',
+              background: 'var(--veil-border)',
+              margin: '0 4px',
+            }}
+            aria-hidden="true"
+          />
+
+          <span className="veil-tagline">Governance Infrastructure</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-veil-muted font-mono">v1.0.0</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => fetchMockTransaction()}
-              className="px-4 py-1.5 text-xs border border-veil-border rounded-lg text-veil-muted hover:border-veil-cyan hover:text-veil-cyan transition-all"
-            >
-              New Transaction
-            </button>
-            <button
-              onClick={() => handleAnalyze()}
-              disabled={loading || !transaction}
-              className="px-4 py-1.5 text-xs bg-gradient-to-r from-veil-cyan to-veil-blue rounded-lg text-white font-medium hover:opacity-90 transition-all disabled:opacity-30"
-            >
-              {loading ? 'Analyzing...' : 'Analyze'}
-            </button>
-            <button
-              onClick={handleRunDemo}
-              disabled={loading}
-              className="px-4 py-1.5 text-xs border border-veil-cyan/30 rounded-lg text-veil-cyan hover:bg-veil-cyan/10 transition-all disabled:opacity-30"
-            >
-              Run Demo
-            </button>
-          </div>
+
+        {/* Center — Status indicator */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <div
+            className="pulse-dot"
+            style={{
+              width: '5px',
+              height: '5px',
+              background: loading ? '#9b8a5a' : '#6b8f6b',
+              boxShadow: loading ? '0 0 6px rgba(155,138,90,0.5)' : '0 0 6px rgba(107,143,107,0.5)',
+            }}
+          />
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '9px',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--veil-muted)',
+            }}
+          >
+            {loading ? 'Processing' : 'System nominal'}
+          </span>
+        </div>
+
+        {/* Right — Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '9px',
+              letterSpacing: '0.14em',
+              color: 'var(--veil-border-bright)',
+              marginRight: '8px',
+            }}
+          >
+            v1.0.0
+          </span>
+
+          <button
+            className="btn-ghost"
+            onClick={() => fetchMockTransaction()}
+          >
+            New Txn
+          </button>
+
+          <button
+            className="btn-outline"
+            onClick={handleRunDemo}
+            disabled={loading}
+          >
+            Demo
+          </button>
+
+          <button
+            className="btn-primary"
+            onClick={() => handleAnalyze()}
+            disabled={loading || !transaction}
+          >
+            {loading ? 'Running...' : 'Analyze →'}
+          </button>
         </div>
       </header>
 
-      {error && (
-        <div className="mx-6 mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      {/* ── ERROR BANNER ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            style={{
+              margin: '0 24px',
+              padding: '10px 16px',
+              borderLeft: '2px solid rgba(143,90,90,0.6)',
+              background: 'rgba(143,90,90,0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '12px',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: 'rgba(143,90,90,0.8)',
+              }}
+            >
+              Error
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                color: 'rgba(143,90,90,0.7)',
+              }}
+            >
+              {error}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <main className="p-6 grid grid-cols-12 gap-4" style={{ height: 'calc(100vh - 73px)' }}>
+      {/* ── MAIN GRID ─────────────────────────────────────────────────────── */}
+      <main
+        style={{
+          padding: '16px 20px 16px',
+          display: 'grid',
+          gridTemplateColumns: '280px 1fr 280px',
+          gap: '12px',
+          height: 'calc(100vh - 52px)',
+        }}
+      >
+        {/* Left */}
         <motion.div
-          className="col-span-3"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          {...SLIDE_LEFT}
+          transition={{ ...SLIDE_LEFT.animate.transition, delay: 0.1 }}
         >
           <LeftPanel transaction={transaction} />
         </motion.div>
 
-        <div className="col-span-6 flex flex-col gap-4">
+        {/* Center */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
           <motion.div
-            className="flex-1"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            style={{ flex: 1, minHeight: 0 }}
+            {...SLIDE_UP}
+            transition={{ ...SLIDE_UP.animate.transition, delay: 0.15 }}
           >
             <CenterPanel
               agentUpdates={agentUpdates}
@@ -150,25 +298,85 @@ export default function Dashboard() {
               loading={loading}
             />
           </motion.div>
+
           <motion.div
-            className="h-48"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            style={{ height: '180px', flexShrink: 0 }}
+            {...SLIDE_UP}
+            transition={{ ...SLIDE_UP.animate.transition, delay: 0.25 }}
           >
             <BottomPanel transaction={transaction} analysis={analysis} />
           </motion.div>
         </div>
 
+        {/* Right */}
         <motion.div
-          className="col-span-3"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          {...SLIDE_RIGHT}
+          transition={{ ...SLIDE_RIGHT.animate.transition, delay: 0.2 }}
         >
           <RightPanel analysis={analysis} loading={loading} />
         </motion.div>
       </main>
-    </div>
+
+      {/* ── BOTTOM META BAR ───────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '24px',
+          background: 'rgba(0,0,0,0.9)',
+          borderTop: '1px solid var(--veil-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px',
+          zIndex: 50,
+        }}
+      >
+        <div style={{ display: 'flex', gap: '24px' }}>
+          {[
+            { label: 'Model', value: 'Gemini 1.5' },
+            { label: 'Agents', value: analysis ? `${analysis.agent_results.length} active` : 'Standby' },
+            { label: 'Storage', value: 'Supabase' },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '8px',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  color: 'var(--veil-border-bright)',
+                }}
+              >
+                {label}
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '8px',
+                  color: 'var(--veil-muted)',
+                }}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '8px',
+            letterSpacing: '0.12em',
+            color: 'var(--veil-border-bright)',
+          }}
+        >
+          Trust, before settlement.
+        </span>
+      </div>
+    </motion.div>
   )
 }
