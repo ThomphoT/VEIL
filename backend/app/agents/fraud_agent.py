@@ -1,3 +1,4 @@
+from app.config import settings
 import time
 from loguru import logger
 from app.models.schemas import AgentResult
@@ -61,7 +62,7 @@ Risk indicators: amount={transaction.get('amount')}, merchant={transaction.get('
 
 Return JSON with score (0-100), confidence (0-1), finding, recommendation.
 """
-        result = await featherless.analyze(prompt)
+        result = await featherless.analyze(prompt, model=settings.featherless_model)
         if result.get("mock"):
             return AgentResult(
                 agent=f"{self.name}_featherless",

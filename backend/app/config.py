@@ -8,11 +8,12 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     gemini_api_key: Optional[str] = None
-    gemini_flash_model: str = "gemini-2.0-flash"
-    gemini_pro_model: str = "gemini-2.0-pro"
+    gemini_flash_model: str = "gemini-1.5-flash"
+    gemini_pro_model: str = "gemini-1.5-pro"
 
     featherless_api_key: Optional[str] = None
     featherless_base_url: str = "https://api.featherless.ai/v1"
+    featherless_model: str = "meta-llama/Llama-3.1-8B-Instruct"
 
     supabase_url: Optional[str] = None
     supabase_key: Optional[str] = None
