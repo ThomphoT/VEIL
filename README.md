@@ -6,7 +6,7 @@ VEIL is AI-native financial governance infrastructure: an autonomous trust layer
 
 ## Architecture
 
-- `frontend` - Next.js 15, TypeScript, TailwindCSS, Recharts, Framer Motion, Lucide React
+- `apps/veil/frontend` - Next.js 15, TypeScript, TailwindCSS, Recharts, Framer Motion, Lucide React
 - `backend` - FastAPI, Python 3.11, async agent orchestration, Gemini, Featherless AI, Supabase, SSE streaming
 - `deploy/vultr` - NGINX reverse proxy and systemd service for Ubuntu 22.04 on Vultr
 - `supabase/schema.sql` - audit persistence schema
@@ -27,7 +27,7 @@ uvicorn app.main:app --reload --port 8000
 Frontend:
 
 ```bash
-cd frontend
+cd apps/veil/frontend
 npm install
 cp .env.example .env.local
 npm run dev
@@ -80,7 +80,7 @@ Then copy the repository to `/opt/veil`, fill `backend/.env`, and follow the pri
 
 Use these exact project roots:
 
-- Vercel frontend root directory: `frontend`
+- Vercel frontend root directory: `apps/veil/frontend`
 - Railway backend root directory: `backend`
 
 Vercel environment variable:

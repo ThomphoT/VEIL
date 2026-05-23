@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev:frontend": "npm --prefix frontend run dev",
-    "build:frontend": "npm --prefix frontend run build",
+    "dev:frontend": "npm --prefix apps/veil/frontend run dev",
+    "build:frontend": "npm --prefix apps/veil/frontend run build",
     "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000",
     "test:backend": "cd backend && python -m pytest"
   }
