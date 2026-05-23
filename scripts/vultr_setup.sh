@@ -13,7 +13,7 @@ sudo mkdir -p /opt/veil
 sudo chown -R "$USER":"$USER" /opt/veil
 
 echo "Copy the repository into /opt/veil, then run:"
-echo "cd /opt/veil/apps/veil-backend && python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
+echo "cd /opt/veil/backend && python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
 echo "sudo cp /opt/veil/deploy/vultr/veil-api.service /etc/systemd/system/veil-api.service"
 echo "sudo systemctl daemon-reload && sudo systemctl enable --now veil-api"
 echo "sudo cp /opt/veil/deploy/vultr/nginx.conf /etc/nginx/sites-available/veil-api"

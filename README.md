@@ -6,8 +6,8 @@ VEIL is AI-native financial governance infrastructure: an autonomous trust layer
 
 ## Architecture
 
-- `apps/veil-frontend` - Next.js 15, TypeScript, TailwindCSS, Recharts, Framer Motion, Lucide React
-- `apps/veil-backend` - FastAPI, Python 3.11, async agent orchestration, Gemini, Featherless AI, Supabase, SSE streaming
+- `frontend` - Next.js 15, TypeScript, TailwindCSS, Recharts, Framer Motion, Lucide React
+- `backend` - FastAPI, Python 3.11, async agent orchestration, Gemini, Featherless AI, Supabase, SSE streaming
 - `deploy/vultr` - NGINX reverse proxy and systemd service for Ubuntu 22.04 on Vultr
 - `supabase/schema.sql` - audit persistence schema
 
@@ -16,7 +16,7 @@ VEIL is AI-native financial governance infrastructure: an autonomous trust layer
 Backend:
 
 ```bash
-cd apps/veil-backend
+cd backend
 python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -27,7 +27,7 @@ uvicorn app.main:app --reload --port 8000
 Frontend:
 
 ```bash
-cd apps/veil-frontend
+cd frontend
 npm install
 cp .env.example .env.local
 npm run dev
@@ -74,4 +74,30 @@ Use an Ubuntu 22.04 VPS on Vultr:
 bash scripts/vultr_setup.sh
 ```
 
-Then copy the repository to `/opt/veil`, fill `apps/veil-backend/.env`, and follow the printed systemd, NGINX and Certbot commands.
+Then copy the repository to `/opt/veil`, fill `backend/.env`, and follow the printed systemd, NGINX and Certbot commands.
+
+## Vercel + Railway Deployment
+
+Use these exact project roots:
+
+- Vercel frontend root directory: `frontend`
+- Railway backend root directory: `backend`
+
+Vercel environment variable:
+
+```bash
+NEXT_PUBLIC_API_URL=https://your-railway-service.up.railway.app
+```
+
+Railway environment variables:
+
+```bash
+FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
+GEMINI_API_KEY=
+FEATHERLESS_API_KEY=
+SPEECHMATICS_API_KEY=
+SUPABASE_URL=
+SUPABASE_KEY=
+```
+
+Railway can also deploy from the repository root because `railway.json` points to `backend`, but the simplest setup is to set Railway's root directory to `backend`.

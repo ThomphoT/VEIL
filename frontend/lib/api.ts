@@ -1,6 +1,6 @@
 import type { AnalysisResult, StreamEvent, Transaction } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 export async function getMockTransaction(): Promise<Transaction> {
   const response = await fetch(`${API_URL}/api/transaction/mock`, { cache: "no-store" });
